@@ -1,0 +1,102 @@
+---
+title: "Motor Trend Data Analysis - Regression Models Course Project"
+author: "Aroge F. Akindele"
+date: "December 14, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+This project analyses the `mtcars` dataset from the *Motor Trend* US magazine. The relationship between the `mpg` variable and the other variables is examined and their effects. Particularly, we want to know which of the transmission types is good for the `mpg` feature. We also try to quantitaviely describe the relationship. The t confidence interval is observed for the variation in the transmission types and we were able to ascertain that, the different transmission types were significant to the data. Different model were then fitted to get a best fit. These models were analysed and a suitable model was achieved. We were able to determine the relationship between a  car with manual and automatic transmission types leaving other variables constant. Specifically the model implied, given that weight and 1/4 mile time are held constant, manually transmitted vehicles are 14.079 + (-4.141)*wt more in the `mpg` values than automatic ones. Looking at the value, we deduce that a light manual transmission and a heavy automatic transmission car have higher mpg values.
+
+## Exploring Data Analysis
+We try to explore the data set to gain some insights as well as prep the data for further analysis.
+
+```{r prepping workspace, echo=FALSE}
+rm(list = ls())
+# loading required packages
+library(ggplot2)
+```
+```{r Exploratory Analysis}
+data("mtcars")
+head(mtcars, 2)
+mtc <- mtcars
+#convert the tyes of the required variables
+mtc$am <- factor(mtc$am)
+mtc$cyl <- factor(mtc$cyl)
+mtc$vs <- factor(mtc$vs)
+mtc$gear <- factor(mtc$gear)
+mtc$carb <- factor(mtc$carb)
+```
+
+```{r }
+fit <- lm(mpg~am, data = mtc)
+coef(summary(fit))
+```
+It is observed that the the estimate for `am1`(manual transmission) as shown in the output above is in comparison with the intercept (`am0`), which is the automatic transmission.
+
+We may take a null hypothesis that the effect of transmission on `mpg` is independent of transmission type. So we just proceed to compare automatic with anual since we have a binary column.
+The confidence interval for the `am1` coefficient is also calculated below:
+
+```{r confinterval}
+confint(fit)
+```
+From the above, we get a significantly low p-value for the manual transmission (`am1`) of 2.850207e-04 with reference to automatic.
+The confidence interval does not contain zero and so we reject the null hypothesis that there is no effect in the type of transmission on `mpg`
+
+## Regression Analysis
+```{r reg analysis}
+fullfit <- lm(mpg~.,  data = mtc); summary(fullfit)
+```
+From the result, the model has an adjsuted Adjusted R-squared:  0.779 but none of the variables are statistically significant, with p-values all greater than .05
+For a best model selection, the step function is used;
+```{r bestfit}
+modelBest <- step(fullfit, k = log(nrow(mtc)), trace = F)
+summary(modelBest)
+```
+This reveals that `wt`, `qsec`, `am1` have been chosen as features for the best fit. It also shows an improved value of 0.8336 for the adjusted R-squared. Furthermore, all of the coefficients are significant at the 0.05 significant level.
+
+## Implementing the Nested mode testing
+```{r nested model testing}
+fit1 <- lm(mpg~wt, data= mtc);fit2 <- update(fit1, mpg~wt+qsec)
+fit3 <- update(fit2, mpg~wt+qsec+am)
+anova(fit1, fit2, fit3)
+```
+Indeed, each of the additional parameter shows significance at the 0.05 level.
+Looking at the pairs plot (Appendix 2), it indicates a relationship between the `wt` and the `am` variables. We may want to add this to our model to cater for this interaction. So we have:
+```{r fit4}
+fit4 <- lm(mpg~ wt+qsec+am+wt:am, data = mtc); summary(fit4)
+```
+With our new model fit (fit4), we see an improved model which explains about 88% of the variation in the data.
+The estimates of the coeficcients tell that, with `wt` (weight in 1000lb) and `qsec` (1/4 mile time) kept constant, a car with manual transmission is 14.079 + (-4.141)*wt greater than that with an automatic transmission.
+
+## Residual Analysis
+1. The first plot in the residual plots (Appendix 3) doesn't seem to show off any obvious pattern which implies we may take the residuals as randomness in the data.
+2. The Normal Q-Q plot also show the plot fairly lying across the dotted line, implying the residual distibution is fairly normal
+3. The Scale-Location plot doesn't show off any systematic pattern as well
+4. The Residuals vs. Leverage plot plot also follows the dotted line closely, also all values fall within the 0.5 bands.
+
+## Conclussion
+From the fore going it is obvious that the `fit4` appears to be the best fit having gotten the key predictors using the step function as well as including the perceived interation between the `wt` and `am` variables. This model explains about 88% of the variation in the data with minimal features and the residual plots show no systematic variations.
+
+
+## Appendix
+1. Plot of MPG vs. Transmission
+```{r mpg vs transmission}
+compareTompg <- function(variable){
+ggplot(data = mtc)+geom_boxplot(mapping = aes_string(variable, "mpg"))+
+    labs(x= variable, y= "MPG", title= "Plot of MPG vs. Transmission")}
+compareTompg("am")
+```
+2. Pairs plot for the dataset
+```{r pairs plot}
+pairs(mtc, panel = panel.smooth,main= "pairs of the Motor Trend Dataset")
+```
+3. Residual Plots
+```{r}
+par(mfrow=c(2,2)); plot(fit4)
+```
+
